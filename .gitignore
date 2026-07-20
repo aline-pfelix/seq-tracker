@@ -1,0 +1,29 @@
+# Mecanismo confidencial de integração com o KoboToolbox (não commitar;
+# ver export_forms_media.example.py para a interface esperada)
+export_forms_media.py
+
+# Cache local de execuções anteriores (não commitar)
+kobo_uid_cache.json
+localidade_cache.json
+
+# Ambiente virtual
+venv/
+.venv/
+
+# Build / PyInstaller
+build/
+dist/
+*.egg-info/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
