@@ -2,6 +2,9 @@
 # ver export_forms_media.example.py para a interface esperada)
 export_forms_media.py
 
+# Relatório de atividades para prestação de contas (uso interno)
+RELATORIO_DE_ATIVIDADES.md
+
 # Cache local de execuções anteriores (não commitar)
 kobo_uid_cache.json
 localidade_cache.json

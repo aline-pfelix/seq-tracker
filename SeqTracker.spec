@@ -1,5 +1,8 @@
 # -*- mode: python ; coding: utf-8 -*-
 
+from pathlib import Path
+
+versao = Path(SPECPATH, 'VERSION').read_text(encoding='utf-8').strip()
 
 a = Analysis(
     ['main.py'],
@@ -22,7 +25,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name='SeqTracker',
+    name=f'SeqTracker_v{versao}',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
