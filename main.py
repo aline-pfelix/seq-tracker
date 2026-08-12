@@ -105,15 +105,25 @@ def main() -> None:
         # ---- ETAPA 5: DOWNLOAD DOS FORMULÁRIOS ---- #
         print("\n[1/3] Baixando formulários...")
 
-        try:
-            form_pcr(username, password, seq, intervalo, base, asset_uid=uids["pcr"])
-            form_eletroforese(username, password, seq, intervalo, base, asset_uid=uids["eletroforese"])
-            form_rack(username, password, seq, intervalo, base, asset_uid=uids["rack"])
-        except Exception as e:
-            print(f"\n❌ Erro na etapa de exportação: {e}")
-            traceback.print_exc()
-            pausar("\nOcorreu um erro. Pressione ENTER para fechar...")
-            return
+        # Cada formulário roda isolado: se um falhar persistentemente (ex:
+        # queda de rede longa demais para as retentativas internas), os
+        # outros dois ainda são tentados, em vez de abortar tudo junto.
+        formularios_com_erro = []
+        for nome_formulario, funcao_formulario in (
+            ("PCR", form_pcr),
+            ("Eletroforese", form_eletroforese),
+            ("Rack", form_rack),
+        ):
+            try:
+                funcao_formulario(username, password, seq, intervalo, base, asset_uid=uids[nome_formulario.lower()])
+            except Exception as e:
+                print(f"\n❌ Erro na etapa de exportação ({nome_formulario}): {e}")
+                traceback.print_exc()
+                formularios_com_erro.append(nome_formulario)
+
+        if formularios_com_erro:
+            print(f"\n⚠️  Os seguintes formulários falharam e foram pulados: {', '.join(formularios_com_erro)}")
+            print("   Rode o programa novamente para tentar baixá-los.")
 
         # ---- ETAPA 6: ORGANIZAÇÃO DOS ARQUIVOS ---- #
         print("\n[2/3] Distribuindo arquivos externos...")
