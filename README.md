@@ -53,7 +53,7 @@ Para não pedir os mesmos dados repetidamente, o script salva localmente:
 
 ## Como citar
 
-Félix, A. P. (2026). *SeqTracker* (Versão 1.3.2) [Software]. https://github.com/aline-pfelix/seq-tracker
+Félix, A. P. (2026). *SeqTracker* (Versão 1.3.3) [Software]. https://github.com/aline-pfelix/seq-tracker
 
 ## Autora
 
