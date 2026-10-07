@@ -4,7 +4,11 @@ from pathlib import Path
 
 # Pasta onde os sequenciamentos são salvos quando o usuário aperta ENTER
 # na pergunta do caminho base.
-CAMINHO_PADRAO = Path(r"D:\BioDossel\Demultiplixing_Todos_arquivos\Baixando")
+CAMINHO_PADRAO = Path(r"D:\UFRJ - BioDossel\Demultiplexing\Baixando")
+
+# Imagem do Primer R usada quando o usuário aperta ENTER na pergunta do
+# Primer R.
+PRIMER_R_PADRAO = Path(r"D:\UFRJ - BioDossel\Demultiplexing\BIM-PrimerR-658_Blue-PCR.jpg")
 
 
 # -------------------------------------------------------------------- #

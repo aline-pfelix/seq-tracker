@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from utils import CAMINHO_PADRAO, limpar_caminho, parse_intervalo, extrair_numero
+from utils import CAMINHO_PADRAO, PRIMER_R_PADRAO, limpar_caminho, parse_intervalo, extrair_numero
 
 LOCALIDADE_CACHE_PATH = Path(__file__).resolve().parent / "localidade_cache.json"
 
@@ -107,7 +107,10 @@ def organizar_dados(seq: str, base: Path | None = None) -> None:
         return
 
     # ---- ETAPA 2: PRIMER R ---- #
-    primer_r = pedir_caminho("\nCaminho do Primer R: ")
+    print(f"\nPrimer R padrão: {PRIMER_R_PADRAO}")
+    primer_r = pedir_caminho("Caminho do Primer R (ou ENTER para usar o padrão): ")
+    if primer_r == Path(""):  # ENTER vazio
+        primer_r = PRIMER_R_PADRAO
 
     if not primer_r.is_file():
         print(f"❌ Primer R não encontrado: {primer_r}")

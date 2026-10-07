@@ -35,14 +35,14 @@ python main.py
 
 O script solicita interativamente:
 
-1. Caminho base onde os arquivos serão salvos (padrão: `D:\BioDossel\Demultiplixing_Todos_arquivos\Baixando`; o caminho pode ser colado com ou sem aspas)
+1. Caminho base onde os arquivos serão salvos (padrão: `D:\UFRJ - BioDossel\Demultiplexing\Baixando`; o caminho pode ser colado com ou sem aspas)
 2. Código do sequenciamento (ex: `Seq001`)
 3. Usuário e senha do KoboToolbox
 4. Intervalo de placas a processar (ex: `1-40,50,60-70`, ou vazio para todas)
 5. Na primeira execução (sem `kobo_uid_cache.json` ainda), qual formulário da conta corresponde a PCR/Eletroforese/Rack
 6. Na etapa de organização dos dados (`data_exter.py`), a Locality do sítio de coleta — veja [Caches locais](#caches-locais)
 
-Depois disso, o download dos formulários acontece automaticamente. A etapa de organização dos dados (`data_exter.py`) ainda pede o caminho do Primer R e, para cada bloco de placas, o intervalo, estrato, coleta, data de coleta e etiqueta — além da sigla de quem fez a PCR em cada intervalo de placas. Só depois disso o relatório final é gerado automaticamente.
+Depois disso, o download dos formulários acontece automaticamente. A etapa de organização dos dados (`data_exter.py`) ainda pede o caminho do Primer R (ENTER usa o padrão `D:\UFRJ - BioDossel\Demultiplexing\BIM-PrimerR-658_Blue-PCR.jpg`) e, para cada bloco de placas, o intervalo, estrato, coleta, data de coleta e etiqueta — além da sigla de quem fez a PCR em cada intervalo de placas. Só depois disso o relatório final é gerado automaticamente.
 
 ## Caches locais
 
@@ -53,7 +53,7 @@ Para não pedir os mesmos dados repetidamente, o script salva localmente:
 
 ## Como citar
 
-Félix, A. P. (2026). *SeqTracker* (Versão 1.3.4) [Software]. https://github.com/aline-pfelix/seq-tracker
+Félix, A. P. (2026). *SeqTracker* (Versão 1.3.5) [Software]. https://github.com/aline-pfelix/seq-tracker
 
 ## Autora
 
