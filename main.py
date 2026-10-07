@@ -70,7 +70,6 @@ def main() -> None:
         # ---- ETAPA 1: CAMINHO BASE ---- #
         base = pedir_caminho_base()
         if base is None:
-            pausar()
             return
 
         # ---- ETAPA 2: DADOS DE ENTRADA ---- #
@@ -78,7 +77,6 @@ def main() -> None:
 
         if not seq:
             print("❌ Código do sequenciamento não pode ser vazio.")
-            pausar()
             return
 
         destino = base / seq
@@ -100,7 +98,6 @@ def main() -> None:
         except Exception as e:
             print(f"\n❌ Erro ao identificar os formulários no KoboToolbox: {e}")
             traceback.print_exc()
-            pausar("\nOcorreu um erro. Pressione ENTER para fechar...")
             return
 
         # ---- ETAPA 5: DOWNLOAD DOS FORMULÁRIOS ---- #
@@ -134,7 +131,6 @@ def main() -> None:
         except Exception as e:
             print(f"\n❌ Erro na organização: {e}")
             traceback.print_exc()
-            pausar("\nOcorreu um erro. Pressione ENTER para fechar...")
             return
 
         # ---- ETAPA 7: RELATÓRIO FINAL ---- #
