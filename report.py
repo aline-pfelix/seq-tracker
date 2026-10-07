@@ -4,6 +4,8 @@ from pathlib import Path
 
 import pandas as pd
 
+from utils import CAMINHO_PADRAO
+
 
 # -------------------------------------------------------------------- #
 # GERAÇÃO DO RELATÓRIO FINAL                                           #
@@ -15,7 +17,7 @@ def create_report(seq: str, intervalo: set[int] | None = None, base: Path | None
     (o mais recente de cada) numa única planilha por placa, com
     rendimento médio de amplificação, e salva em base/seq."""
     if base is None:
-        base = Path.home() / "Documents" / "Demultiplixing_Todos_arquivos"
+        base = CAMINHO_PADRAO
 
     BASE = base / seq
     EXPORT_BASE = BASE / "Formularios_Exportados"

@@ -35,7 +35,7 @@ python main.py
 
 O script solicita interativamente:
 
-1. Caminho base onde os arquivos serão salvos (padrão: `Documentos/Demultiplixing_Todos_arquivos`)
+1. Caminho base onde os arquivos serão salvos (padrão: `D:\BioDossel\Demultiplixing_Todos_arquivos\Baixando`; o caminho pode ser colado com ou sem aspas)
 2. Código do sequenciamento (ex: `Seq001`)
 3. Usuário e senha do KoboToolbox
 4. Intervalo de placas a processar (ex: `1-40,50,60-70`, ou vazio para todas)
@@ -53,7 +53,7 @@ Para não pedir os mesmos dados repetidamente, o script salva localmente:
 
 ## Como citar
 
-Félix, A. P. (2026). *SeqTracker* (Versão 1.3.3) [Software]. https://github.com/aline-pfelix/seq-tracker
+Félix, A. P. (2026). *SeqTracker* (Versão 1.3.4) [Software]. https://github.com/aline-pfelix/seq-tracker
 
 ## Autora
 

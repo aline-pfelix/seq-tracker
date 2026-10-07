@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from utils import parse_intervalo, extrair_numero
+from utils import CAMINHO_PADRAO, limpar_caminho, parse_intervalo, extrair_numero
 
 LOCALIDADE_CACHE_PATH = Path(__file__).resolve().parent / "localidade_cache.json"
 
@@ -25,6 +25,12 @@ def pedir_inteiro(mensagem: str) -> int:
             return int(entrada)
         except ValueError:
             print("❌ Digite um número inteiro válido.")
+
+
+def pedir_caminho(mensagem: str) -> Path:
+    """Pede um caminho de arquivo ao usuário, removendo as aspas que o
+    Windows inclui ao usar "Copiar como caminho" (Ctrl+Shift+C)."""
+    return Path(limpar_caminho(input(mensagem)))
 
 
 # -------------------------------------------------------------------- #
@@ -84,7 +90,7 @@ def organizar_dados(seq: str, base: Path | None = None) -> None:
     placa em base/seq/Dados_imagens, e gera a planilha de metadados
     (SampleID, Locality, Collection Date) de cada uma."""
     if base is None:
-        base = Path.home() / "Documents" / "Demultiplixing_Todos_arquivos"
+        base = CAMINHO_PADRAO
 
     BASE = base / seq / "Dados_imagens"
 
@@ -101,10 +107,10 @@ def organizar_dados(seq: str, base: Path | None = None) -> None:
         return
 
     # ---- ETAPA 2: PRIMER R ---- #
-    primer_r = Path(input("\nCaminho do Primer R: ").strip())
+    primer_r = pedir_caminho("\nCaminho do Primer R: ")
 
-    if not primer_r.exists():
-        print("❌ Primer R não encontrado.")
+    if not primer_r.is_file():
+        print(f"❌ Primer R não encontrado: {primer_r}")
         return
 
     # ---- ETAPA 3: BLOCOS ---- #
@@ -121,10 +127,10 @@ def organizar_dados(seq: str, base: Path | None = None) -> None:
         coleta = input("Coleta (2 dígitos): ").strip()
         data = input("Collection Date (siga estritamente o formato do exemplo: 06jan2025): ").strip()
 
-        arquivo_coleta = Path(input("Etiqueta de coleta: ").strip())
+        arquivo_coleta = pedir_caminho("Etiqueta de coleta: ")
 
-        if not arquivo_coleta.exists():
-            print("❌ Arquivo de coleta inválido.")
+        if not arquivo_coleta.is_file():
+            print(f"❌ Arquivo de coleta inválido: {arquivo_coleta}")
             return
 
         blocos.append({

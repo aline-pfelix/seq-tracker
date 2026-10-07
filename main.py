@@ -6,7 +6,7 @@ import getpass
 from pathlib import Path
 
 from export_forms_media import form_pcr, form_eletroforese, form_rack, resolver_asset_uids
-from utils import parse_intervalo
+from utils import CAMINHO_PADRAO, limpar_caminho, parse_intervalo
 from data_exter import organizar_dados
 from report import create_report
 
@@ -32,10 +32,11 @@ def pausar(mensagem: str = "\nPressione ENTER para fechar...") -> None:
 def pedir_caminho_base() -> Path | None:
     """Pede o caminho base ao usuário e valida se existe, oferecendo
     criá-lo caso não exista. Retorna None se o usuário cancelar."""
-    padrao = Path.home() / "Documents" / "Demultiplixing_Todos_arquivos"
+    padrao = CAMINHO_PADRAO
 
     print(f"\nCaminho padrão: {padrao}")
-    entrada = input("Informe o caminho base para salvar os arquivos (ou ENTER para usar o padrão): ").strip()
+    entrada = input("Informe o caminho base para salvar os arquivos (ou ENTER para usar o padrão): ")
+    entrada = limpar_caminho(entrada)
 
     if not entrada:
         caminho = padrao

@@ -1,5 +1,23 @@
 from __future__ import annotations
 
+from pathlib import Path
+
+# Pasta onde os sequenciamentos são salvos quando o usuário aperta ENTER
+# na pergunta do caminho base.
+CAMINHO_PADRAO = Path(r"D:\BioDossel\Demultiplixing_Todos_arquivos\Baixando")
+
+
+# -------------------------------------------------------------------- #
+# UTILITÁRIOS DE CAMINHO                                               #
+# -------------------------------------------------------------------- #
+
+
+def limpar_caminho(texto: str) -> str:
+    """Remove espaços e as aspas que o Windows inclui ao usar "Copiar como
+    caminho" (Ctrl+Shift+C) ou ao arrastar um arquivo para o terminal."""
+    return texto.strip().strip("\"'").strip()
+
+
 # -------------------------------------------------------------------- #
 # UTILITÁRIOS DE INTERVALO DE PLACAS                                   #
 # -------------------------------------------------------------------- #
