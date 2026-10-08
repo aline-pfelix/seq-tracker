@@ -4,10 +4,20 @@ import sys
 import traceback
 import getpass
 from pathlib import Path
+from typing import Any
 
 from export_forms_media import form_pcr, form_eletroforese, form_rack, resolver_asset_uids
-from utils import CAMINHO_PADRAO, limpar_caminho, parse_intervalo
-from data_exter import organizar_dados
+from utils import (
+    CAMINHO_PADRAO,
+    COMANDO_VOLTAR,
+    Voltar,
+    executar_etapas,
+    limpar_caminho,
+    pedir_intervalo,
+    pedir_texto,
+    perguntar,
+)
+from data_exter import etapas_organizacao, organizar_dados, resumo_organizacao
 from report import create_report
 
 # O console padrão do Windows costuma usar um codepage legado (ex: cp1252),
@@ -16,6 +26,10 @@ from report import create_report
 for _stream in (sys.stdout, sys.stderr):
     if hasattr(_stream, "reconfigure"):
         _stream.reconfigure(encoding="utf-8", errors="replace")
+
+
+class Cancelado(Exception):
+    """Lançada quando o usuário desiste da corrida na tela de confirmação."""
 
 
 # -------------------------------------------------------------------- #
@@ -29,31 +43,93 @@ def pausar(mensagem: str = "\nPressione ENTER para fechar...") -> None:
     input(mensagem)
 
 
-def pedir_caminho_base() -> Path | None:
-    """Pede o caminho base ao usuário e valida se existe, oferecendo
-    criá-lo caso não exista. Retorna None se o usuário cancelar."""
-    padrao = CAMINHO_PADRAO
+def pedir_caminho_base(atual: Path | None = None) -> Path:
+    """Pede o caminho base ao usuário. Se a pasta não existir, pergunta se
+    ela deve ser criada (a criação só acontece ao iniciar a corrida)."""
+    padrao = atual or CAMINHO_PADRAO
 
-    print(f"\nCaminho padrão: {padrao}")
-    entrada = input("Informe o caminho base para salvar os arquivos (ou ENTER para usar o padrão): ")
-    entrada = limpar_caminho(entrada)
+    while True:
+        print(f"\nCaminho padrão: {padrao}")
+        entrada = limpar_caminho(perguntar("Informe o caminho base para salvar os arquivos (ou ENTER para usar o padrão): "))
+        caminho = Path(entrada) if entrada else padrao
 
-    if not entrada:
-        caminho = padrao
-    else:
-        caminho = Path(entrada)
+        if caminho.exists():
+            return caminho
 
-    if not caminho.exists():
         print(f"⚠️  Caminho não encontrado: {caminho}")
-        criar = input("Deseja criar a pasta? (s/n): ").strip().lower()
-        if criar == "s":
-            caminho.mkdir(parents=True, exist_ok=True)
-            print(f"✔ Pasta criada: {caminho}")
-        else:
-            print("❌ Operação cancelada.")
-            return None
+        if perguntar("Deseja criar a pasta? (s/n): ").lower() == "s":
+            return caminho
 
-    return caminho
+
+# -------------------------------------------------------------------- #
+# CONFIGURAÇÃO DA CORRIDA                                              #
+# -------------------------------------------------------------------- #
+
+
+def configurar_corrida() -> dict[str, Any]:
+    """Faz todas as perguntas da corrida de uma vez, antes de qualquer
+    download, para que o resto do processo rode sem precisar de ninguém
+    no computador. Em qualquer pergunta, COMANDO_VOLTAR volta à anterior.
+    Lança Cancelado se o usuário desistir na confirmação."""
+    cfg: dict[str, Any] = {}
+
+    def base() -> None:
+        cfg["base"] = pedir_caminho_base(cfg.get("base"))
+
+    def seq() -> None:
+        cfg["seq"] = pedir_texto("\nInforme o código do sequenciamento (ex: Seq001): ", cfg.get("seq"))
+
+    def usuario() -> None:
+        cfg["username"] = pedir_texto("\nUsuário do KoboToolbox: ", cfg.get("username"))
+
+    def senha() -> None:
+        # A senha é digitada às cegas, então não há valor atual para manter.
+        while True:
+            password = getpass.getpass(f"Senha do KoboToolbox ({COMANDO_VOLTAR} para voltar): ")
+            if password.strip() == COMANDO_VOLTAR:
+                raise Voltar
+            if not password:
+                print("❌ A senha não pode ficar vazia.")
+                continue
+            try:
+                # Pode pedir para escolher os formulários (só na primeira
+                # vez); por isso roda aqui, ainda na fase de perguntas.
+                cfg["uids"] = resolver_asset_uids(cfg["username"], password)
+            except Exception as e:
+                print(f"\n❌ Erro ao acessar o KoboToolbox: {e}")
+                print(f"   Digite a senha de novo ou {COMANDO_VOLTAR} para corrigir o usuário.")
+                continue
+            cfg["password"] = password
+            return
+
+    def intervalo() -> None:
+        # Sem valor atual: ENTER aqui significa "todas as placas".
+        cfg["intervalo_texto"], cfg["intervalo"] = pedir_intervalo(
+            "\nInforme o intervalo de placas (ex: 1-40,50,60-70) ou ENTER para todas: ", obrigatorio=False
+        )
+
+    def confirmar() -> None:
+        print("\n" + "=" * 60)
+        print("RESUMO DA CORRIDA")
+        print("=" * 60)
+        print(f"Salvar em:  {cfg['base'] / cfg['seq']}")
+        print(f"Usuário:    {cfg['username']}")
+        print(f"Placas:     {cfg['intervalo_texto'] or 'todas'}")
+        for linha in resumo_organizacao(cfg):
+            print(linha)
+        print("=" * 60)
+
+        while True:
+            resposta = perguntar(f"\nIniciar a corrida? (s = iniciar / n = cancelar / {COMANDO_VOLTAR} = voltar): ").lower()
+            if resposta == "s":
+                return
+            if resposta == "n":
+                raise Cancelado
+            print("Opção inválida.")
+
+    print(f"Dica: digite {COMANDO_VOLTAR} em qualquer pergunta para voltar à anterior.")
+    executar_etapas([base, seq, usuario, senha, intervalo, *etapas_organizacao(cfg), confirmar])
+    return cfg
 
 
 # -------------------------------------------------------------------- #
@@ -62,45 +138,28 @@ def pedir_caminho_base() -> Path | None:
 
 
 def main() -> None:
-    """Executa o pipeline completo: download dos formulários do
-    KoboToolbox, organização dos arquivos externos e relatório final."""
+    """Executa o pipeline completo: primeiro todas as perguntas, depois,
+    sem mais interação, o download dos formulários do KoboToolbox, a
+    organização dos arquivos externos e o relatório final."""
     try:
         print("--- DATA BIODOSSEL ---\n")
 
-        # ---- ETAPA 1: CAMINHO BASE ---- #
-        base = pedir_caminho_base()
-        if base is None:
+        # ---- ETAPA 1: CONFIGURAÇÃO (ÚNICA PARTE INTERATIVA) ---- #
+        try:
+            cfg = configurar_corrida()
+        except Cancelado:
+            print("\n❌ Corrida cancelada.")
             return
 
-        # ---- ETAPA 2: DADOS DE ENTRADA ---- #
-        seq = input("\nInforme o código do sequenciamento (ex: Seq001): ").strip()
-
-        if not seq:
-            print("❌ Código do sequenciamento não pode ser vazio.")
-            return
+        base, seq, intervalo = cfg["base"], cfg["seq"], cfg["intervalo"]
+        username, password, uids = cfg["username"], cfg["password"], cfg["uids"]
 
         destino = base / seq
-        print(f"\n📁 Os arquivos serão salvos em:\n   {destino}\n")
+        base.mkdir(parents=True, exist_ok=True)
+        print(f"\n📁 Os arquivos serão salvos em:\n   {destino}")
+        print("\n⏳ A partir daqui não é preciso responder mais nada.")
 
-        username = input("Usuário do KoboToolbox: ").strip()
-        password = getpass.getpass("Senha do KoboToolbox: ")
-
-        # ---- ETAPA 3: INTERVALO DE PLACAS ---- #
-        intervalo_input = input("Informe o intervalo de placas (ex: 1-40,50,60-70) ou ENTER para todas: ").strip()
-        intervalo = parse_intervalo(intervalo_input)
-
-        # ---- ETAPA 4: RESOLUÇÃO DOS FORMULÁRIOS ---- #
-        # Resolve os formulários do KoboToolbox agora (pode pedir para você
-        # escolher qual é qual, na primeira vez), para que o download em
-        # seguida rode sem precisar de mais nenhuma interação.
-        try:
-            uids = resolver_asset_uids(username, password)
-        except Exception as e:
-            print(f"\n❌ Erro ao identificar os formulários no KoboToolbox: {e}")
-            traceback.print_exc()
-            return
-
-        # ---- ETAPA 5: DOWNLOAD DOS FORMULÁRIOS ---- #
+        # ---- ETAPA 2: DOWNLOAD DOS FORMULÁRIOS ---- #
         print("\n[1/3] Baixando formulários...")
 
         # Cada formulário roda isolado: se um falhar persistentemente (ex:
@@ -123,17 +182,17 @@ def main() -> None:
             print(f"\n⚠️  Os seguintes formulários falharam e foram pulados: {', '.join(formularios_com_erro)}")
             print("   Rode o programa novamente para tentar baixá-los.")
 
-        # ---- ETAPA 6: ORGANIZAÇÃO DOS ARQUIVOS ---- #
+        # ---- ETAPA 3: ORGANIZAÇÃO DOS ARQUIVOS ---- #
         print("\n[2/3] Distribuindo arquivos externos...")
 
         try:
-            organizar_dados(seq, base)
+            organizar_dados(seq, base, cfg)
         except Exception as e:
             print(f"\n❌ Erro na organização: {e}")
             traceback.print_exc()
             return
 
-        # ---- ETAPA 7: RELATÓRIO FINAL ---- #
+        # ---- ETAPA 4: RELATÓRIO FINAL ---- #
         print("\n[3/3] Gerando relatório final...")
 
         try:

@@ -3,12 +3,25 @@ from __future__ import annotations
 import json
 import shutil
 from pathlib import Path
+from typing import Any, Callable
 
 import pandas as pd
 
-from utils import CAMINHO_PADRAO, PRIMER_R_PADRAO, limpar_caminho, parse_intervalo, extrair_numero
+from utils import (
+    CAMINHO_PADRAO,
+    LOCALIDADE_PADRAO,
+    PRIMER_R_PADRAO,
+    Voltar,
+    executar_etapas,
+    extrair_numero,
+    limpar_caminho,
+    pasta_do_programa,
+    pedir_intervalo,
+    pedir_texto,
+    perguntar,
+)
 
-LOCALIDADE_CACHE_PATH = Path(__file__).resolve().parent / "localidade_cache.json"
+LOCALIDADE_CACHE_PATH = pasta_do_programa() / "localidade_cache.json"
 
 
 # -------------------------------------------------------------------- #
@@ -16,21 +29,24 @@ LOCALIDADE_CACHE_PATH = Path(__file__).resolve().parent / "localidade_cache.json
 # -------------------------------------------------------------------- #
 
 
-def pedir_inteiro(mensagem: str) -> int:
-    """Pede um número inteiro ao usuário, repetindo a pergunta até
-    receber uma entrada válida (evita crash com ValueError cru)."""
+def pedir_inteiro(mensagem: str, atual: int | None = None) -> int:
+    """Pede um número inteiro positivo ao usuário, repetindo a pergunta
+    até receber uma entrada válida (evita crash com ValueError cru)."""
     while True:
-        entrada = input(mensagem).strip()
-        try:
+        entrada = perguntar(mensagem, atual)
+        if entrada.isdigit() and int(entrada) > 0:
             return int(entrada)
-        except ValueError:
-            print("❌ Digite um número inteiro válido.")
+        print("❌ Digite um número inteiro maior que zero.")
 
 
-def pedir_caminho(mensagem: str) -> Path:
-    """Pede um caminho de arquivo ao usuário, removendo as aspas que o
-    Windows inclui ao usar "Copiar como caminho" (Ctrl+Shift+C)."""
-    return Path(limpar_caminho(input(mensagem)))
+def pedir_arquivo(mensagem: str, atual: Path | None = None) -> Path:
+    """Pede o caminho de um arquivo (aceitando aspas, como no "Copiar como
+    caminho" do Windows) e repete a pergunta até o arquivo existir."""
+    while True:
+        caminho = Path(limpar_caminho(perguntar(mensagem, atual)))
+        if caminho != Path("") and caminho.is_file():
+            return caminho
+        print(f"❌ Arquivo não encontrado: {caminho}")
 
 
 # -------------------------------------------------------------------- #
@@ -59,25 +75,112 @@ def _salvar_ultima_localidade(localidade: str) -> None:
     )
 
 
-def pedir_localidade() -> str | None:
-    """Pede a Locality ao usuário. Se já houver uma salva de uma execução
-    anterior, oferece ela como padrão (ENTER confirma) em vez de obrigar a
-    redigitar a string inteira toda vez. Retorna None se o usuário não
-    informar nenhum valor."""
-    ultima = _carregar_ultima_localidade()
+# -------------------------------------------------------------------- #
+# PERGUNTAS DA ORGANIZAÇÃO                                             #
+# -------------------------------------------------------------------- #
 
-    if ultima:
-        entrada = input(f"\nLocality [{ultima}] (ENTER para manter ou digite uma nova): ").strip()
-        localidade = entrada or ultima
-    else:
-        localidade = input("\nLocality (ex: BR-AM-iranduba-Rod352-km50-cascade): ").strip()
 
-    if not localidade:
-        print("❌ Locality não pode ser vazia.")
-        return None
+def _pedir_lista(
+    titulo_qtd: str,
+    anteriores: list[dict[str, Any]],
+    etapas_item: Callable[[int, dict[str, Any]], list[Callable[[], None]]],
+) -> list[dict[str, Any]]:
+    """Pergunta quantos itens (blocos ou siglas) existem e, em seguida, os
+    campos de cada um. Voltar a partir do primeiro campo leva de volta à
+    pergunta da quantidade; respostas anteriores reaparecem como padrão."""
+    while True:
+        qtd = pedir_inteiro(titulo_qtd, len(anteriores) or None)
+        itens = [dict(item) for item in anteriores[:qtd]]
+        itens += [{} for _ in range(qtd - len(itens))]
 
-    _salvar_ultima_localidade(localidade)
-    return localidade
+        etapas = [etapa for i, item in enumerate(itens) for etapa in etapas_item(i, item)]
+        try:
+            executar_etapas(etapas, pode_voltar_antes=True)
+            return itens
+        except Voltar:
+            anteriores = itens
+
+
+def _etapas_bloco(i: int, bloco: dict[str, Any]) -> list[Callable[[], None]]:
+    def intervalo() -> None:
+        print(f"\n--- BLOCO {i+1} ---")
+        bloco["intervalo_texto"], bloco["intervalo"] = pedir_intervalo("Intervalo de placas: ", bloco.get("intervalo_texto"))
+
+    def estrato() -> None:
+        bloco["estrato"] = pedir_texto("Estrato (2 dígitos): ", bloco.get("estrato"))
+
+    def coleta() -> None:
+        bloco["coleta"] = pedir_texto("Coleta (2 dígitos): ", bloco.get("coleta"))
+
+    def data() -> None:
+        bloco["data"] = pedir_texto(
+            "Collection Date (siga estritamente o formato do exemplo: 06jan2025): ", bloco.get("data")
+        )
+
+    def arquivo() -> None:
+        bloco["arquivo"] = pedir_arquivo("Etiqueta de coleta: ", bloco.get("arquivo"))
+
+    return [intervalo, estrato, coleta, data, arquivo]
+
+
+def _etapas_prefixo(i: int, prefixo: dict[str, Any]) -> list[Callable[[], None]]:
+    def codigo() -> None:
+        print(f"\n--- SIGLA {i+1} ---")
+        prefixo["codigo"] = pedir_texto("Sigla da pessoa que realizou a PCR (ex: MA, RR): ", prefixo.get("codigo"))
+
+    def intervalo() -> None:
+        prefixo["intervalo_texto"], prefixo["intervalo"] = pedir_intervalo(
+            "Intervalo de placas: ", prefixo.get("intervalo_texto")
+        )
+
+    return [codigo, intervalo]
+
+
+def etapas_organizacao(cfg: dict[str, Any]) -> list[Callable[[], None]]:
+    """Perguntas da organização dos dados externos (Locality, Primer R,
+    blocos e siglas), feitas no início junto com o resto da configuração.
+    As respostas ficam em cfg, para uso posterior em organizar_dados."""
+
+    def localidade() -> None:
+        atual = cfg.get("localidade") or _carregar_ultima_localidade() or LOCALIDADE_PADRAO
+        cfg["localidade"] = pedir_texto("\nLocality (ENTER mantém o valor entre colchetes): ", atual)
+
+    def primer_r() -> None:
+        print(f"\nPrimer R padrão: {PRIMER_R_PADRAO}")
+        cfg["primer_r"] = pedir_arquivo("Caminho do Primer R (ENTER usa o padrão): ", cfg.get("primer_r", PRIMER_R_PADRAO))
+
+    def blocos() -> None:
+        cfg["blocos"] = _pedir_lista(
+            "\nQuantos blocos de dados (Um bloco deve ter um único estrato e de um única coleta)? ",
+            cfg.get("blocos", []),
+            _etapas_bloco,
+        )
+
+    def prefixos() -> None:
+        cfg["prefixos"] = _pedir_lista(
+            "\nQuantas pessoas fizeram PCRs? ",
+            cfg.get("prefixos", []),
+            _etapas_prefixo,
+        )
+
+    return [localidade, primer_r, blocos, prefixos]
+
+
+def resumo_organizacao(cfg: dict[str, Any]) -> list[str]:
+    """Linhas do resumo da configuração da organização, para conferência
+    antes de iniciar a corrida."""
+    linhas = [
+        f"Locality:   {cfg['localidade']}",
+        f"Primer R:   {cfg['primer_r']}",
+    ]
+    for i, b in enumerate(cfg["blocos"], start=1):
+        linhas.append(
+            f"Bloco {i}:    placas {b['intervalo_texto']} | estrato {b['estrato']} | coleta {b['coleta']}"
+            f" | {b['data']} | {b['arquivo'].name}"
+        )
+    for p in cfg["prefixos"]:
+        linhas.append(f"Sigla {p['codigo']}:   placas {p['intervalo_texto']}")
+    return linhas
 
 
 # -------------------------------------------------------------------- #
@@ -85,82 +188,29 @@ def pedir_localidade() -> str | None:
 # -------------------------------------------------------------------- #
 
 
-def organizar_dados(seq: str, base: Path | None = None) -> None:
+def organizar_dados(seq: str, base: Path | None, cfg: dict[str, Any]) -> None:
     """Distribui o primer R e as etiquetas de coleta pelas pastas de
     placa em base/seq/Dados_imagens, e gera a planilha de metadados
-    (SampleID, Locality, Collection Date) de cada uma."""
+    (SampleID, Locality, Collection Date) de cada uma, usando as
+    respostas coletadas por etapas_organizacao."""
     if base is None:
         base = CAMINHO_PADRAO
 
     BASE = base / seq / "Dados_imagens"
 
     if not BASE.exists():
-        print("❌ Pasta não encontrada.")
+        print(f"❌ Pasta não encontrada: {BASE}")
         return
 
     print(f"\n📂 Pasta encontrada: {BASE}")
 
-    # ---- ETAPA 1: LOCALIDADE ---- #
-    localidade = pedir_localidade()
+    localidade = cfg["localidade"]
+    primer_r = cfg["primer_r"]
+    blocos = cfg["blocos"]
+    prefixos = cfg["prefixos"]
 
-    if localidade is None:
-        return
+    _salvar_ultima_localidade(localidade)
 
-    # ---- ETAPA 2: PRIMER R ---- #
-    print(f"\nPrimer R padrão: {PRIMER_R_PADRAO}")
-    primer_r = pedir_caminho("Caminho do Primer R (ou ENTER para usar o padrão): ")
-    if primer_r == Path(""):  # ENTER vazio
-        primer_r = PRIMER_R_PADRAO
-
-    if not primer_r.is_file():
-        print(f"❌ Primer R não encontrado: {primer_r}")
-        return
-
-    # ---- ETAPA 3: BLOCOS ---- #
-    blocos = []
-
-    qtd_blocos = pedir_inteiro("\nQuantos blocos de dados (Um bloco deve ter um único estrato e de um única coleta)? ")
-
-    for i in range(qtd_blocos):
-        print(f"\n--- BLOCO {i+1} ---")
-
-        intervalo = parse_intervalo(input("Intervalo de placas: ").strip())
-
-        estrato = input("Estrato (2 dígitos): ").strip()
-        coleta = input("Coleta (2 dígitos): ").strip()
-        data = input("Collection Date (siga estritamente o formato do exemplo: 06jan2025): ").strip()
-
-        arquivo_coleta = pedir_caminho("Etiqueta de coleta: ")
-
-        if not arquivo_coleta.is_file():
-            print(f"❌ Arquivo de coleta inválido: {arquivo_coleta}")
-            return
-
-        blocos.append({
-            "intervalo": intervalo,
-            "estrato": estrato,
-            "coleta": coleta,
-            "data": data,
-            "arquivo": arquivo_coleta
-        })
-
-    # ---- ETAPA 4: PREFIXOS ---- #
-    prefixos = []
-
-    qtd_prefixos = pedir_inteiro("\nQuantas pessoas fizeram PCRs? ")
-
-    for i in range(qtd_prefixos):
-        print(f"\n--- SIGLA {i+1} ---")
-
-        codigo = input("Sigla da pessoa que realizou a PCR (ex: MA, RR): ").strip()
-        intervalo = parse_intervalo(input("Intervalo de placas: ").strip())
-
-        prefixos.append({
-            "codigo": codigo,
-            "intervalo": intervalo
-        })
-
-    # ---- ETAPA 5: PROCESSAMENTO ---- #
     print("\n🚀 Processando...\n")
 
     for pasta in sorted(BASE.iterdir()):

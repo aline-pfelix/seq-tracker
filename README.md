@@ -33,27 +33,29 @@ pip install -r requirements.txt
 python main.py
 ```
 
-O script solicita interativamente:
+Todas as perguntas são feitas no início, antes de qualquer download:
 
-1. Caminho base onde os arquivos serão salvos (padrão: `D:\UFRJ - BioDossel\Demultiplexing\Baixando`; o caminho pode ser colado com ou sem aspas)
+1. Caminho base onde os arquivos serão salvos (padrão: `D:\UFRJ - BioDossel\Demultiplexing\Baixando`)
 2. Código do sequenciamento (ex: `Seq001`)
-3. Usuário e senha do KoboToolbox
+3. Usuário e senha do KoboToolbox — na primeira execução (sem `kobo_uid_cache.json` ainda), também qual formulário da conta corresponde a PCR/Eletroforese/Rack
 4. Intervalo de placas a processar (ex: `1-40,50,60-70`, ou vazio para todas)
-5. Na primeira execução (sem `kobo_uid_cache.json` ainda), qual formulário da conta corresponde a PCR/Eletroforese/Rack
-6. Na etapa de organização dos dados (`data_exter.py`), a Locality do sítio de coleta — veja [Caches locais](#caches-locais)
+5. Locality do sítio de coleta (padrão: `BR-AM-Careiro-Rod254-km17MonteHorebe-cascade`, ou a última usada — veja [Caches locais](#caches-locais))
+6. Caminho do Primer R (padrão: `D:\UFRJ - BioDossel\Demultiplexing\BIM-PrimerR-658_Blue-PCR.jpg`)
+7. Para cada bloco de placas: intervalo, estrato, coleta, data de coleta e etiqueta
+8. A sigla de quem fez a PCR em cada intervalo de placas
 
-Depois disso, o download dos formulários acontece automaticamente. A etapa de organização dos dados (`data_exter.py`) ainda pede o caminho do Primer R (ENTER usa o padrão `D:\UFRJ - BioDossel\Demultiplexing\BIM-PrimerR-658_Blue-PCR.jpg`) e, para cada bloco de placas, o intervalo, estrato, coleta, data de coleta e etiqueta — além da sigla de quem fez a PCR em cada intervalo de placas. Só depois disso o relatório final é gerado automaticamente.
+Em qualquer pergunta, digitar `<` volta para a anterior, mantendo as respostas já dadas (ENTER confirma o valor entre colchetes). Caminhos podem ser colados com ou sem aspas. No fim aparece um resumo para conferência; depois de confirmado, o download dos formulários, a organização dos arquivos e o relatório final rodam sem precisar de mais nenhuma interação.
 
 ## Caches locais
 
-Para não pedir os mesmos dados repetidamente, o script salva localmente:
+Para não pedir os mesmos dados repetidamente, o script salva localmente (na mesma pasta do `.exe`, ou do `main.py` quando rodado pelo código-fonte):
 
 - `kobo_uid_cache.json` — o UID de cada formulário do KoboToolbox, descoberto na primeira execução.
 - `localidade_cache.json` — a última Locality informada na organização dos dados; nas execuções seguintes, só pede confirmação (ENTER mantém o valor salvo) em vez de redigitar a string inteira.
 
 ## Como citar
 
-Félix, A. P. (2026). *SeqTracker* (Versão 1.3.5) [Software]. https://github.com/aline-pfelix/seq-tracker
+Félix, A. P. (2026). *SeqTracker* (Versão 1.3.6) [Software]. https://github.com/aline-pfelix/seq-tracker
 
 ## Autora
 
